@@ -8,10 +8,13 @@ const requestify = require('requestify');
 const simpleGet = require('simple-get');
 const superagent = require('superagent');
 const unirest = require('unirest');
+const urllib = require('urllib');
+const Fly = require('flyio/src/node');
 
 const nock = require('nock');
 const HOST = 'test-perf';
 const URL = `http://${HOST}/test`;
+const fly = new Fly();
 
 axios.defaults.baseURL = `http://${HOST}`;
 
@@ -23,6 +26,15 @@ nock('http://test-perf').persist()
     .post('/test').reply(200, 'ok')
     .get('/test').reply(200, 'ok');
 
+suite.add('http.request GET request', {
+    defer: true,
+    fn: (defer) => {
+        http.request({ path: '/test', host: HOST }, (res) => {
+            res.resume().on('end', () => defer.resolve());
+        }).end();
+    }
+});
+
 suite.add('http.request POST request', {
     defer: true,
     fn: (defer) => {
@@ -31,15 +43,6 @@ suite.add('http.request POST request', {
         });
         req.write();
         req.end();
-    }
-});
-
-suite.add('http.request GET request', {
-    defer: true,
-    fn: (defer) => {
-        http.request({ path: '/test', host: HOST }, (res) => {
-            res.resume().on('end', () => defer.resolve());
-        }).end();
     }
 });
 
@@ -169,11 +172,39 @@ suite.add('unirest POST request', {
     }
 });
 
-suite.on('complete', function(defer) {
+suite.add('urllib GET request', {
+    defer: true,
+    fn: (defer) => {
+        urllib.request(URL, () => defer.resolve());
+    }
+});
+
+suite.add('urllib POST request', {
+    defer: true,
+    fn: (defer) => {
+        urllib.request(URL,{ type: 'POST' }, () => defer.resolve());
+    }
+});
+
+suite.add('fly GET request', {
+    defer: true,
+    fn: (defer) => {
+        fly.get(URL).then(() => defer.resolve())
+    }
+});
+
+suite.add('fly POST request', {
+    defer: true,
+    fn: (defer) => {
+        fly.post(URL).then(() => defer.resolve());
+    }
+});
+
+suite.on('complete', function (defer) {
     console.log('Fastest is ' + this.filter('fastest').map('name'));
 });
 
-suite.on('cycle', function(event) {
+suite.on('cycle', (event) => {
     console.log(String(event.target));
 });
 
